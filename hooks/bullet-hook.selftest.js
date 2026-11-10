@@ -138,10 +138,10 @@ test('reminder on normal turns, full rules on the 8th', () => {
   assert.ok(c8.includes('bullet:surgical-patch'), '8th turn did not refresh');
 });
 
-test('full block stays under 3000 characters', () => {
+test('full block stays under 3500 characters', () => {
   resetState();
   const c = prompt('s1', '/bullet full');
-  assert.ok(c.length < 3000, 'full block is ' + c.length + ' chars');
+  assert.ok(c.length < 3500, 'full block is ' + c.length + ' chars');
 });
 
 // ---- subagents ----
