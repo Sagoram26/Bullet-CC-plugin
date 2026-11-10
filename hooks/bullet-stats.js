@@ -117,17 +117,48 @@ function report(result, label) {
   return lines.join('\n');
 }
 
+// Subagent transcripts live beside the session file, in <session-id>/subagents/*.jsonl.
+function subagentFiles(sessionFile) {
+  const dir = path.join(path.dirname(sessionFile), path.basename(sessionFile, '.jsonl'), 'subagents');
+  try {
+    return fs.readdirSync(dir).filter((f) => f.endsWith('.jsonl')).map((f) => path.join(dir, f));
+  } catch (e) {
+    return [];
+  }
+}
+
+// Sums several measure() results. Re-read cost is per file: a subagent's
+// injections are re-read by that subagent's turns only.
+function aggregate(results) {
+  const total = { usage: { turns: 0, input: 0, cacheCreate: 0, cacheRead: 0, output: 0 },
+    inj: { count: 0, chars: 0, full: 0, reminder: 0 }, injTokens: 0, rereadTokens: 0 };
+  for (const r of results) {
+    for (const k of Object.keys(total.usage)) total.usage[k] += r.usage[k];
+    for (const k of Object.keys(total.inj)) total.inj[k] += r.inj[k];
+    total.injTokens += r.injTokens;
+    total.rereadTokens += r.rereadTokens;
+  }
+  return total;
+}
+
 function main() {
   const target = process.argv[2] || newestTranscript(PROJECTS_DIR);
   if (!target || !fs.existsSync(target)) {
     process.stdout.write('No transcript found. Pass a .jsonl path.\n');
     return;
   }
-  const text = fs.readFileSync(target, 'utf8');
-  process.stdout.write(report(measure(text), path.basename(target)) + '\n');
+  const mainResult = measure(fs.readFileSync(target, 'utf8'));
+  const subs = subagentFiles(target).map((f) => measure(fs.readFileSync(f, 'utf8')));
+  const all = aggregate([mainResult, ...subs]);
+
+  const out = [report(all, path.basename(target))];
+  out.push('', `Main session: ${mainResult.usage.turns} turns, ${mainResult.inj.count} injections, re-read ${mainResult.rereadTokens}`);
+  out.push(`Subagents: ${subs.length} transcript(s), ${subs.reduce((a, r) => a + r.usage.turns, 0)} turns, ${subs.reduce((a, r) => a + r.inj.count, 0)} injections, re-read ${subs.reduce((a, r) => a + r.rereadTokens, 0)}`);
+  out.push('', 'Injection tokens are estimates (characters / 4). Token counts are from transcript usage.');
+  process.stdout.write(out.join('\n') + '\n');
 }
 
-module.exports = { measure, report };
+module.exports = { measure, report, aggregate, subagentFiles };
 
 if (require.main === module) {
   try { main(); } catch (e) { process.stdout.write('bullet stats failed: ' + e.message + '\n'); }

@@ -244,6 +244,29 @@ test('bullet-stats counts usage once per message and bullet injections only', ()
   assert.strictEqual(r.rereadTokens, 0, 'reread counted without later turns');
 });
 
+test('bullet-stats reads subagent transcripts beside the session file', () => {
+  const { subagentFiles, aggregate, measure } = require('./bullet-stats.js');
+  const proj = path.join(ROOT, 'proj');
+  const sid = 'sess-1';
+  fs.mkdirSync(path.join(proj, sid, 'subagents'), { recursive: true });
+  const session = path.join(proj, sid + '.jsonl');
+  fs.writeFileSync(session, JSON.stringify({ type: 'assistant', message: { id: 'a', usage: { input_tokens: 1, cache_read_input_tokens: 10, output_tokens: 1 } } }));
+  fs.writeFileSync(path.join(proj, sid, 'subagents', 'agent-x.jsonl'),
+    [
+      { type: 'assistant', message: { id: 'b', usage: { input_tokens: 2, cache_read_input_tokens: 20, output_tokens: 2 } } },
+      { type: 'attachment', attachment: { type: 'hook_success', content: 'BULLET MODE ACTIVE (full). ' + 'y'.repeat(400) } },
+      { type: 'assistant', message: { id: 'c', usage: { input_tokens: 3, cache_read_input_tokens: 30, output_tokens: 3 } } },
+    ].map((l) => JSON.stringify(l)).join('\n'));
+  const subs = subagentFiles(session);
+  assert.strictEqual(subs.length, 1, 'subagent file not found');
+  const total = aggregate([measure(fs.readFileSync(session, 'utf8')), ...subs.map((f) => measure(fs.readFileSync(f, 'utf8')))]);
+  assert.strictEqual(total.usage.turns, 3);
+  assert.strictEqual(total.inj.count, 1);
+  // The injection sits between turn b and turn c: re-read once.
+  const injChars = 'BULLET MODE ACTIVE (full). '.length + 400;
+  assert.strictEqual(total.rereadTokens, Math.round(injChars / 4) * 1);
+});
+
 // ---- done ----
 
 fs.rmSync(ROOT, { recursive: true, force: true });
