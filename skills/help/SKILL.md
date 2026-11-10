@@ -33,7 +33,7 @@ Display only. Change nothing.
 - `commit`: Conventional Commits message.
 - `review`: correctness review, then over-engineering cuts.
 - `audit`: repo-wide over-engineering audit; `--debt` for the shortcut ledger.
-- `stats`: published benchmark figures.
+- `stats`: measured token usage and bullet injection cost, from the session transcript.
 - `handoff`: manual only (`/bullet:handoff`). Writes a handoff document to the OS temporary directory.
 
 ## Agents (automatic)

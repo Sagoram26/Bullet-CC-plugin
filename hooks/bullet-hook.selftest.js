@@ -217,6 +217,33 @@ test('SessionEnd writes nothing when bullet is off', () => {
   assert.ok(!fs.existsSync(path.join(TMP, 'bullet-snapshot-s9.md')), 'snapshot written while off');
 });
 
+// ---- stats ----
+
+test('bullet-stats counts usage once per message and bullet injections only', () => {
+  const { measure } = require('./bullet-stats.js');
+  const lines = [
+    { type: 'assistant', message: { id: 'm1', usage: { input_tokens: 10, cache_creation_input_tokens: 100, cache_read_input_tokens: 1000, output_tokens: 5 } } },
+    { type: 'assistant', message: { id: 'm1', usage: { input_tokens: 10, cache_creation_input_tokens: 100, cache_read_input_tokens: 1000, output_tokens: 5 } } },
+    { type: 'assistant', message: { id: 'm2', usage: { input_tokens: 4, cache_creation_input_tokens: 0, cache_read_input_tokens: 2000, output_tokens: 7 } } },
+    { type: 'attachment', attachment: { type: 'hook_success', content: 'BULLET MODE ACTIVE (ultra). Apply bullet ultra rules.' } },
+    { type: 'attachment', attachment: { type: 'hook_success', content: 'BULLET MODE ACTIVE (full). ' + 'x'.repeat(400) } },
+    { type: 'attachment', attachment: { type: 'hook_additional_context', content: ['BULLET MODE ACTIVE (ultra). Apply bullet ultra rules.'] } },
+    { type: 'attachment', attachment: { type: 'hook_success', content: 'CAVEMAN MODE ACTIVE — not ours' } },
+  ].map((l) => JSON.stringify(l)).join('\n');
+  const r = measure(lines);
+  assert.strictEqual(r.usage.turns, 2, 'usage not deduplicated');
+  assert.strictEqual(r.usage.input, 14);
+  assert.strictEqual(r.usage.cacheRead, 3000);
+  assert.strictEqual(r.usage.output, 12);
+  assert.strictEqual(r.inj.count, 3, 'injection count wrong');
+  assert.strictEqual(r.inj.full, 1);
+  assert.strictEqual(r.inj.reminder, 2);
+  // Injections sit after m1 (before m2 in file order): both injections are re-read by turn m2 only.
+  // Order in fixture: m1, m1 (dup), m2, inj, inj, caveman, inj. After m2: 3 injections, each re-read 0 turns after.
+  // Expected re-read: 0 (no turn follows the injections).
+  assert.strictEqual(r.rereadTokens, 0, 'reread counted without later turns');
+});
+
 // ---- done ----
 
 fs.rmSync(ROOT, { recursive: true, force: true });

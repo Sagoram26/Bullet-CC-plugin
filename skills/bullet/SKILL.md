@@ -51,6 +51,8 @@ Errors: state cause and fix. No "uh oh", no "there seems to be".
 
 Make finished work visible: say what now works and the one command to see it.
 
+Multi-step work: use the host's task list tool when one exists, one item in progress at a time. The list keeps the state visible without restating the whole plan.
+
 Code, ladder, stop at the first rung that holds:
 1. Does it need to exist at all? (YAGNI)
 2. Already in this repo? Reuse. Grep first.
