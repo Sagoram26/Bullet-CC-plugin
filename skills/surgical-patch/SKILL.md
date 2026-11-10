@@ -1,9 +1,10 @@
 ---
 name: surgical-patch
 description: >
-  Fix a bug or small behavior change at the narrowest responsible layer. Use
-  proactively whenever the user reports a bug, a failing test, or wrong behavior
-  with a known symptom.
+  Fix a bug or small behavior change at the narrowest responsible layer. Invoke
+  this FIRST, before any Read, Grep or Bash, whenever the user reports a bug, a
+  failing test, or wrong behavior with a known symptom. Triggers: "fix this bug",
+  "corrige ce bug", "ça ne marche pas", "test qui échoue".
 ---
 
 # surgical-patch

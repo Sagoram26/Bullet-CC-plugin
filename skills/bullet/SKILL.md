@@ -80,13 +80,13 @@ Mark each real corner cut with a `bullet:` comment naming the ceiling and the up
 
 ## Routing
 
-Use these without being asked:
-- Bug to fix: `bullet:surgical-patch`.
+Use without being asked. Call the row's skill (or agent) before any Read, Grep, Bash or Edit:
+- Bug, failing test, wrong behavior: `bullet:surgical-patch`.
 - Unknown or intermittent cause: `bullet:investigate-first`.
-- Restructure without behavior change: `bullet:safe-refactor`.
-- Before saying "done": `bullet:verify-and-stop`.
+- Restructure, same behavior: `bullet:safe-refactor`.
+- Before saying done: `bullet:verify-and-stop`.
 - Commit message: `bullet:commit`. Diff review: `bullet:review`.
-- "Where is X" / "who calls Y": agent `bullet:investigator`.
+- Where is X / who calls Y: agent `bullet:investigator`.
 - Diff before merge: agent `bullet:reviewer`.
 
 Conflicts: on a code task, code first, then `Next:` on one line.

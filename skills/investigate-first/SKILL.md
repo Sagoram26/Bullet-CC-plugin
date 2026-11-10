@@ -1,9 +1,10 @@
 ---
 name: investigate-first
 description: >
-  Diagnose an ambiguous failure before editing. Use proactively for unknown
-  causes, intermittent failures, flaky tests, performance regressions, or any
-  "why does this sometimes fail" question.
+  Diagnose an ambiguous failure before editing. Invoke this FIRST, before any
+  Read, Grep or Bash, for unknown causes, intermittent failures, flaky tests,
+  performance regressions. Triggers: "why does this sometimes fail", "pourquoi
+  ça plante parfois", "pourquoi ça bug de temps en temps", "flaky".
 ---
 
 # investigate-first

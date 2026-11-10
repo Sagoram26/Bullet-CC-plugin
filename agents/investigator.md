@@ -1,9 +1,10 @@
 ---
 name: investigator
 description: >
-  Read-only code locator. Use proactively when a task asks "where is X defined",
-  "what calls Y", "list all uses of Z", or "map this directory". Returns a
-  file:line table. Does not suggest fixes.
+  Read-only code locator. Delegate to this agent FIRST when a task asks "where is
+  X defined", "what calls Y", "list all uses of Z", or "map this directory"
+  (also "où est définie X", "qui appelle Y"). Returns a file:line table. Does not
+  suggest fixes.
 model: haiku
 tools: Read, Grep, Glob
 ---

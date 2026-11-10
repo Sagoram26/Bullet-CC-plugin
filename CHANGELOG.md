@@ -3,7 +3,9 @@
 ## Unreleased
 
 - Pending: plugin icon (`.claude-plugin/icon.png`). Not blocking for local or GitHub use.
-- Pending: manual check of session end on Ctrl+C. Normal close is verified.
+- Session end on Ctrl+C and normal close verified (snapshot written in both cases).
+- Fix: automatic routing. Workflow and agent descriptions and the `## Routing` section now say to call the matching skill or agent before Read, Grep, Bash or Edit. Tested in fresh sessions: 0/4 before, 4/4 on two passes after.
+- Fix: full block kept under 3000 characters (test added).
 
 ## 0.1.0
 

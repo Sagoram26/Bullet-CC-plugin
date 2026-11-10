@@ -1,8 +1,10 @@
 ---
 name: verify-and-stop
 description: >
-  Prove that work meets its acceptance criteria, then stop. Use proactively
-  before saying a task is done, fixed, or passing, and for validation-only requests.
+  Prove that work meets its acceptance criteria, then stop. Invoke this FIRST,
+  before any reply that says a task is done, fixed, or passing, and for
+  validation-only requests. Triggers: "is it done", "c'est fini", "c'est réglé",
+  "vérifie que", "tests pass?".
 ---
 
 # verify-and-stop
