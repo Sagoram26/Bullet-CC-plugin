@@ -1,0 +1,53 @@
+{
+  "hooks": {
+    "SessionStart": [
+      {
+        "matcher": "startup|resume|clear|compact",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/bullet-hook.js\" session",
+            "timeout": 30,
+            "statusMessage": "Loading bullet mode..."
+          }
+        ]
+      }
+    ],
+    "SubagentStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/bullet-hook.js\" subagent",
+            "timeout": 30,
+            "statusMessage": "Loading bullet mode for subagent..."
+          }
+        ]
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/bullet-hook.js\" prompt",
+            "timeout": 30,
+            "statusMessage": "Tracking bullet mode..."
+          }
+        ]
+      }
+    ],
+    "SessionEnd": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/bullet-hook.js\" end",
+            "timeout": 10,
+            "statusMessage": "Writing bullet snapshot..."
+          }
+        ]
+      }
+    ]
+  }
+}

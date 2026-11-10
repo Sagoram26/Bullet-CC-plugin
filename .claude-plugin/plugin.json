@@ -1,0 +1,10 @@
+{
+  "name": "bullet",
+  "version": "0.1.0",
+  "description": "One mode for voice, ADHD-friendly structure, and lazy code. Merges caveman, i-have-adhd, ponytail. Levels: lite, full, ultra.",
+  "author": {
+    "name": "Aden Fidon"
+  },
+  "license": "Apache-2.0",
+  "hooks": "./hooks/hooks.json"
+}

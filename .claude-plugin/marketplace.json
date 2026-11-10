@@ -1,0 +1,16 @@
+{
+  "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
+  "name": "bullet",
+  "description": "Local marketplace for the bullet plugin.",
+  "owner": {
+    "name": "local"
+  },
+  "plugins": [
+    {
+      "name": "bullet",
+      "description": "One mode for voice, ADHD-friendly structure, and lazy code. Levels lite, full, ultra.",
+      "source": "./",
+      "category": "productivity"
+    }
+  ]
+}

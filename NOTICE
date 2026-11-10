@@ -1,0 +1,43 @@
+bullet
+Copyright 2026 Aden Fidon
+
+bullet merges, adapts, and extends the following works. The merge, the
+adaptations, the hook implementation, the level system, and the new skills
+and agents are the work of the copyright holder above.
+
+This product includes or adapts the following third-party works:
+
+1. caveman
+   Copyright 2026 Julius Brussee
+   Licensed under the Apache License, Version 2.0 (see LICENSE)
+   Source: https://github.com/JuliusBrussee/caveman
+   Adapted: voice rules (answer first, fragments), workflows surgical-patch,
+   investigate-first, verify-and-stop, safe-refactor, the commit and review
+   skills, and the investigator and reviewer agents.
+   Changes: rules rewritten, merged into one level system, hooks rewritten.
+   "Caveman" is a trademark of Julius Brussee. This project is not affiliated
+   with or endorsed by Julius Brussee or Caveman Cloud.
+
+2. i-have-adhd
+   Copyright (c) 2026 Ayoub Ghriss
+   Licensed under the MIT License (see licenses/i-have-adhd-MIT.txt)
+   Source: https://github.com/ayghri/i-have-adhd
+   Adapted: ADHD-oriented structure rules (next action first, numbered steps,
+   state restated each turn, concrete time estimates, list caps).
+
+3. ponytail
+   Copyright (c) 2026 DietrichGebert
+   Licensed under the MIT License (see licenses/ponytail-MIT.txt)
+   Source: https://github.com/DietrichGebert/ponytail
+   Adapted: the code ladder, the over-engineering review tags, the audit and
+   debt skills, and the published benchmark figures in the stats skill.
+
+4. handoff (mattpocock-skills)
+   Copyright (c) 2026 Matt Pocock
+   Licensed under the MIT License (see licenses/mattpocock-skills-MIT.txt)
+   Source: https://github.com/mattpocock/skills
+   Adapted: the handoff skill structure and its rules on references and secrets.
+
+The MIT License texts reproduced in licenses/ apply to the parts of this
+product that come from those works. Each of those texts is an unmodified copy
+of the upstream LICENSE file.
