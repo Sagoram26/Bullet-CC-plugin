@@ -6,9 +6,9 @@
 //   node bullet-hook.js end       SessionEnd      (factual snapshot in OS temp dir)
 //
 // State (under CLAUDE_CONFIG_DIR or ~/.claude):
-//   .bullet/default.json          { mode }          default level for new sessions
-//   .bullet/session-<id>.json     { mode, turns }   per session; mode "off" allowed
-// Rules are read from ../skills/bullet/SKILL.md (sections Common, Level, Routing).
+//   .bullet/default.json          { mode }   default level for new sessions
+//   .bullet/session-<id>.json     { mode }   per session; mode "off" allowed
+// Rules are read from ../skills/bullet/SKILL.md (sections Common, Voice, Shape, Code, Level, Routing, Reminder).
 // Every path ends with exit 0 and never throws to the host.
 
 const fs = require('fs');
@@ -16,8 +16,6 @@ const path = require('path');
 const os = require('os');
 const { execFileSync } = require('child_process');
 
-// Tunable: full rules are re-sent every N user prompts.
-const REFRESH_EVERY = 8;
 // Tunable: session state files older than this are purged at SessionStart.
 const PURGE_AFTER_DAYS = 30;
 // Tunable: how long to wait for stdin before giving up (Windows stdin can stall, see ponytail #443).
@@ -30,6 +28,9 @@ const CONFIG_DIR = process.env.CLAUDE_CONFIG_DIR || path.join(os.homedir(), '.cl
 const STATE_DIR = path.join(CONFIG_DIR, '.bullet');
 const DEFAULT_PATH = path.join(STATE_DIR, 'default.json');
 const SKILL_PATH = path.join(__dirname, '..', 'skills', 'bullet', 'SKILL.md');
+
+// Marks a full ruleset injection (bullet-stats tells full from reminder by it).
+const FULL_MARKER = 'BULLET RULESET';
 
 const FALLBACK_RULES =
   'Bullet: answer first, fragments, Next: line, fix root cause, delete before add. ' +
@@ -50,29 +51,46 @@ function collapse(text) {
   return text.replace(/\s*\n\s*/g, ' ').replace(/\s{2,}/g, ' ').trim();
 }
 
+// Injected in this order, markdown kept: headings and Bad/Good pairs are what
+// condition the voice. A run-on paragraph (the 0.1.x collapse) had little effect.
+// Only the session's own Level heading is injected.
+const HEADINGS = ['Common', 'Voice', 'Shape', 'Code', 'Level: lite', 'Level: full', 'Level: ultra', 'Routing'];
+
 let cachedRules = null;
+function loadRules() {
+  if (cachedRules) return cachedRules;
+  cachedRules = {};
+  try {
+    const md = fs.readFileSync(SKILL_PATH, 'utf8');
+    for (const h of [...HEADINGS, 'Reminder']) cachedRules[h] = sectionBody(md, h);
+  } catch (e) { /* missing skill: use fallback */ }
+  return cachedRules;
+}
+
+// Returns the ruleset markdown, or null when any section is missing.
 function rulesFor(mode) {
-  if (!cachedRules) {
-    cachedRules = {};
-    try {
-      const md = fs.readFileSync(SKILL_PATH, 'utf8');
-      cachedRules.common = sectionBody(md, 'Common');
-      cachedRules.routing = sectionBody(md, 'Routing');
-      for (const l of LEVELS) cachedRules[l] = sectionBody(md, 'Level: ' + l);
-    } catch (e) { /* missing skill: use fallback */ }
-  }
-  const { common, routing } = cachedRules;
-  const level = cachedRules[mode];
-  if (!common || !level || !routing) return FALLBACK_RULES;
-  return collapse(common) + ' ' + collapse(level) + ' ' + collapse(routing);
+  const r = loadRules();
+  const heads = HEADINGS.filter((h) => !h.startsWith('Level') || h === 'Level: ' + mode);
+  if (heads.some((h) => !r[h])) return null;
+  return heads.map((h) => '## ' + h + '\n\n' + r[h]).join('\n\n');
 }
 
+// The marker is set only on the real ruleset, so stats never counts the fallback as full.
 function fullBlock(mode) {
-  return `BULLET MODE ACTIVE (${mode}). ${rulesFor(mode)}`;
+  const rules = rulesFor(mode);
+  return rules
+    ? `BULLET MODE ACTIVE (${mode}). ${FULL_MARKER}: the ruleset below applies to every response.\n\n${rules}`
+    : `BULLET MODE ACTIVE (${mode}). ${FALLBACK_RULES}`;
 }
 
+// Per-turn directive, sent last so recency works for it (same mechanism as the
+// caveman tracker): the level's first paragraph plus the SKILL `## Reminder` section.
+// The full ruleset is sent only at SessionStart (including after compact) and on a level change.
 function reminder(mode) {
-  return `BULLET MODE ACTIVE (${mode}). Apply bullet ${mode} rules.`;
+  const r = loadRules();
+  const level = r['Level: ' + mode];
+  const parts = [level ? collapse(level.split(/\n\s*\n/)[0]) : '', r.Reminder ? collapse(r.Reminder) : FALLBACK_RULES];
+  return `BULLET MODE ACTIVE (${mode}). ` + parts.filter(Boolean).join(' ');
 }
 
 // ---------- state ----------
@@ -102,28 +120,16 @@ function validMode(m) {
   return LEVELS.includes(m) || m === 'off';
 }
 
-// Returns { mode, turns, persisted } for a session. mode: a level, or null (off).
+// Returns { mode } for a session. mode: a level, or null (off).
 function resolveSession(sid) {
   const def = readJson(DEFAULT_PATH);
   const defMode = def && LEVELS.includes(def.mode) ? def.mode : null;
-  if (!sid) {
-    return { mode: defMode, turns: def ? Number(def.turns) || 0 : 0, persisted: false };
-  }
+  if (!sid) return { mode: defMode };
   const s = readJson(sessionPath(sid));
-  if (s && validMode(s.mode)) {
-    return { mode: s.mode === 'off' ? null : s.mode, turns: Number(s.turns) || 0, persisted: true };
-  }
+  if (s && validMode(s.mode)) return { mode: s.mode === 'off' ? null : s.mode };
   // New session: inherit the default level once, then it is its own.
-  if (defMode) writeJson(sessionPath(sid), { mode: defMode, turns: 0 });
-  return { mode: defMode, turns: 0, persisted: true };
-}
-
-function bumpTurns(sid, state) {
-  if (!state.mode) return 0;
-  const turns = state.turns + 1;
-  if (sid) writeJson(sessionPath(sid), { mode: state.mode, turns });
-  else writeJson(DEFAULT_PATH, { mode: state.mode, turns });
-  return turns;
+  if (defMode) writeJson(sessionPath(sid), { mode: defMode });
+  return { mode: defMode };
 }
 
 // ---------- io ----------
@@ -174,7 +180,7 @@ function onPrompt(sid, prompt) {
 
   if (cmd && cmd.kind === 'off') {
     const state = resolveSession(sid);
-    if (sid) writeJson(sessionPath(sid), { mode: 'off', turns: 0 });
+    if (sid) writeJson(sessionPath(sid), { mode: 'off' });
     removeFile(DEFAULT_PATH);
     if (state.mode) emit('UserPromptSubmit', 'Bullet mode off. Confirm in one line, then normal style.');
     return;
@@ -194,7 +200,7 @@ function onPrompt(sid, prompt) {
       const def = readJson(DEFAULT_PATH);
       level = def && LEVELS.includes(def.mode) ? def.mode : 'full';
     }
-    if (sid) writeJson(sessionPath(sid), { mode: level, turns: 0 });
+    if (sid) writeJson(sessionPath(sid), { mode: level });
     writeJson(DEFAULT_PATH, { mode: level });
     emit('UserPromptSubmit', fullBlock(level));
     return;
@@ -202,8 +208,7 @@ function onPrompt(sid, prompt) {
 
   const state = resolveSession(sid);
   if (!state.mode) return;
-  const turns = bumpTurns(sid, state);
-  emit('UserPromptSubmit', turns % REFRESH_EVERY === 0 ? fullBlock(state.mode) : reminder(state.mode));
+  emit('UserPromptSubmit', reminder(state.mode));
 }
 
 // ---------- SessionStart / SubagentStart ----------

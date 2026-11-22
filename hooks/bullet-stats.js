@@ -17,7 +17,11 @@ const os = require('os');
 const CONFIG_DIR = process.env.CLAUDE_CONFIG_DIR || path.join(os.homedir(), '.claude');
 const PROJECTS_DIR = path.join(CONFIG_DIR, 'projects');
 const INJECTION_PREFIX = 'BULLET MODE ACTIVE';
-const FULL_THRESHOLD_CHARS = 300;
+// Set by bullet-hook.js on full ruleset injections; reminders do not carry it.
+const FULL_MARKER = 'BULLET RULESET';
+// Transcripts from before the marker: their full blocks were about 2900+ characters,
+// reminders at most a few hundred. Unmarked text above this counts as full.
+const LEGACY_FULL_CHARS = 1500;
 
 function newestTranscript(root) {
   let best = null;
@@ -74,7 +78,7 @@ function measure(text) {
       if (typeof text === 'string' && text.startsWith(INJECTION_PREFIX)) {
         inj.count += 1;
         inj.chars += text.length;
-        if (text.length > FULL_THRESHOLD_CHARS) inj.full += 1; else inj.reminder += 1;
+        if (text.includes(FULL_MARKER) || text.length > LEGACY_FULL_CHARS) inj.full += 1; else inj.reminder += 1;
         events.push({ kind: 'inj', tokens: Math.round(text.length / 4) });
       }
     }
@@ -158,7 +162,7 @@ function main() {
   process.stdout.write(out.join('\n') + '\n');
 }
 
-module.exports = { measure, report, aggregate, subagentFiles };
+module.exports = { measure, report, aggregate, subagentFiles, FULL_MARKER };
 
 if (require.main === module) {
   try { main(); } catch (e) { process.stdout.write('bullet stats failed: ' + e.message + '\n'); }

@@ -126,22 +126,54 @@ test('invalid session id does not write outside state dir', () => {
 
 // ---- per-turn behaviour ----
 
-test('reminder on normal turns, full rules on the 8th', () => {
+test('reminder every turn, never the full ruleset', () => {
   resetState();
   prompt('s1', '/bullet ultra');
-  for (let i = 1; i <= 7; i++) {
+  for (let i = 1; i <= 9; i++) {
     const c = prompt('s1', 'turn ' + i);
-    assert.ok(c.length < 300, 'reminder too long: ' + c.length);
-    assert.ok(!c.includes('bullet:surgical-patch'), 'full block too early at ' + i);
+    assert.ok(c.length < 800, 'reminder too long: ' + c.length);
+    assert.ok(!c.includes('BULLET RULESET'), 'full ruleset re-sent at turn ' + i);
+    assert.ok(/Max 5 lines/.test(c), 'reminder lacks the ultra voice line at ' + i);
+    assert.ok(c.includes('Answer only what was asked'), 'reminder lacks the scope rule at ' + i);
   }
-  const c8 = prompt('s1', 'turn 8');
-  assert.ok(c8.includes('bullet:surgical-patch'), '8th turn did not refresh');
 });
 
-test('full block stays under 3500 characters', () => {
-  resetState();
-  const c = prompt('s1', '/bullet full');
-  assert.ok(c.length < 3500, 'full block is ' + c.length + ' chars');
+test('every level carries the shared voice, shape, code and routing', () => {
+  for (const level of ['lite', 'full', 'ultra']) {
+    resetState();
+    const c = prompt('s1', '/bullet ' + level);
+    assert.ok(c.includes('BULLET RULESET'), level + ': no ruleset marker');
+    assert.ok(c.includes('Lead with the next action'), level + ': shape missing');
+    assert.ok(c.includes('Kill ceremony'), level + ': voice missing');
+    assert.ok(c.includes('YAGNI'), level + ': code ladder missing');
+    assert.ok(c.includes('bullet:surgical-patch'), level + ': routing missing');
+    assert.ok(c.includes('Voice ' + level + ':'), level + ': own level line missing');
+    assert.ok(/\n### /.test(c), level + ': markdown flattened');
+  }
+});
+
+test('every level ruleset stays under 10000 characters', () => {
+  for (const level of ['lite', 'full', 'ultra']) {
+    resetState();
+    const c = prompt('s1', '/bullet ' + level);
+    assert.ok(c.length < 10000, level + ' block is ' + c.length + ' chars');
+  }
+});
+
+test('missing SKILL.md: fallback rules, no ruleset marker, exit 0', () => {
+  // Copy the hook alone: ../skills/bullet/SKILL.md does not exist beside it.
+  const dir = path.join(ROOT, 'noskill', 'hooks');
+  fs.mkdirSync(dir, { recursive: true });
+  const lone = path.join(dir, 'bullet-hook.js');
+  fs.copyFileSync(HOOK, lone);
+  const r = spawnSync(process.execPath, [lone, 'prompt'], {
+    input: JSON.stringify({ session_id: 's1', prompt: '/bullet full' }),
+    env: { ...process.env, CLAUDE_CONFIG_DIR: path.join(ROOT, 'noskill', 'cfg') }, encoding: 'utf8', timeout: 15000,
+  });
+  assert.strictEqual(r.status, 0, 'exit ' + r.status);
+  const c = ctx(r);
+  assert.ok(c && c.includes('Bullet: answer first'), 'fallback missing: ' + c);
+  assert.ok(!c.includes('BULLET RULESET'), 'fallback carries the full marker');
 });
 
 // ---- subagents ----
@@ -220,14 +252,22 @@ test('SessionEnd writes nothing when bullet is off', () => {
 // ---- stats ----
 
 test('bullet-stats counts usage once per message and bullet injections only', () => {
-  const { measure } = require('./bullet-stats.js');
+  const { measure, FULL_MARKER } = require('./bullet-stats.js');
+  // Real hook output, so the stats classification tracks what the hook emits today.
+  resetState();
+  const full = prompt('s1', '/bullet ultra');
+  const rem = prompt('s1', 'x');
+  assert.ok(full.includes(FULL_MARKER), 'hook full block lacks the stats marker');
+  assert.ok(!rem.includes(FULL_MARKER), 'hook reminder carries the stats marker');
+  const legacyFull = 'BULLET MODE ACTIVE (full). ' + 'z'.repeat(3000); // pre-marker full block
   const lines = [
     { type: 'assistant', message: { id: 'm1', usage: { input_tokens: 10, cache_creation_input_tokens: 100, cache_read_input_tokens: 1000, output_tokens: 5 } } },
     { type: 'assistant', message: { id: 'm1', usage: { input_tokens: 10, cache_creation_input_tokens: 100, cache_read_input_tokens: 1000, output_tokens: 5 } } },
     { type: 'assistant', message: { id: 'm2', usage: { input_tokens: 4, cache_creation_input_tokens: 0, cache_read_input_tokens: 2000, output_tokens: 7 } } },
-    { type: 'attachment', attachment: { type: 'hook_success', content: 'BULLET MODE ACTIVE (ultra). Apply bullet ultra rules.' } },
-    { type: 'attachment', attachment: { type: 'hook_success', content: 'BULLET MODE ACTIVE (full). ' + 'x'.repeat(400) } },
-    { type: 'attachment', attachment: { type: 'hook_additional_context', content: ['BULLET MODE ACTIVE (ultra). Apply bullet ultra rules.'] } },
+    { type: 'attachment', attachment: { type: 'hook_success', content: rem } },
+    { type: 'attachment', attachment: { type: 'hook_success', content: full } },
+    { type: 'attachment', attachment: { type: 'hook_additional_context', content: [rem] } },
+    { type: 'attachment', attachment: { type: 'hook_success', content: legacyFull } },
     { type: 'attachment', attachment: { type: 'hook_success', content: 'CAVEMAN MODE ACTIVE — not ours' } },
   ].map((l) => JSON.stringify(l)).join('\n');
   const r = measure(lines);
@@ -235,12 +275,10 @@ test('bullet-stats counts usage once per message and bullet injections only', ()
   assert.strictEqual(r.usage.input, 14);
   assert.strictEqual(r.usage.cacheRead, 3000);
   assert.strictEqual(r.usage.output, 12);
-  assert.strictEqual(r.inj.count, 3, 'injection count wrong');
-  assert.strictEqual(r.inj.full, 1);
-  assert.strictEqual(r.inj.reminder, 2);
-  // Injections sit after m1 (before m2 in file order): both injections are re-read by turn m2 only.
-  // Order in fixture: m1, m1 (dup), m2, inj, inj, caveman, inj. After m2: 3 injections, each re-read 0 turns after.
-  // Expected re-read: 0 (no turn follows the injections).
+  assert.strictEqual(r.inj.count, 4, 'injection count wrong');
+  assert.strictEqual(r.inj.full, 2, 'marked or legacy full block not counted as full');
+  assert.strictEqual(r.inj.reminder, 2, 'real reminder not counted as reminder');
+  // Order in fixture: m1, m1 (dup), m2, then all injections: no turn follows them, so re-read is 0.
   assert.strictEqual(r.rereadTokens, 0, 'reread counted without later turns');
 });
 
