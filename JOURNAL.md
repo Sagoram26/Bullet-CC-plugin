@@ -21,8 +21,8 @@ Newest state first, then history, then backlog.
 
 ### Open items
 
-- Doubled hooks, confirmed 2026-11-22: `caveman`, `ponytail`, `i-have-adhd` are `true` again in `~/.claude/settings.json` next to `bullet`; sessions and subagents get all three injections. `settings.json.bak` (2026-11-15) still has them `false`. Likely cause: the `/plugin` menu and `/reload-plugins` on 2026-11-16 (first caveman and ponytail injection 2026-11-16 09:46 UTC). Inference, no stated reason. Fix: set the three back to `false`. Awaiting user decision.
-- Stale copy in the separate config backup repo: `~/config-CC/claude/plugins-local/bullet/` (branch `pc-bureau`, `bd12a58`) holds the pre-review-fix version, and its `claude/settings.json` has all four plugins `true`. Restoring on another PC reproduces both problems. Refresh that copy from `main` and set the three to `false` there.
+- Doubled hooks, confirmed 2026-11-22: `caveman`, `ponytail`, `i-have-adhd` are `true` again in `~/.claude/settings.json` next to `bullet`; sessions and subagents get all three injections. `settings.json.bak` (2026-11-15) still has them `false`. Likely cause: the `/plugin` menu and `/reload-plugins` on 2026-11-16 (first caveman and ponytail injection 2026-11-16 09:46 UTC). Inference, no stated reason. User ruling 2026-11-22: leave them `true` for now (doubling accepted). Fix when wanted: set the three back to `false`.
+- Stale copy in the separate config backup repo: `~/config-CC/claude/plugins-local/bullet/` (branch `pc-bureau`, `bd12a58`) holds the pre-review-fix version, and its `claude/settings.json` has all four plugins `true`. Restoring on another PC reproduces both problems. User ruling 2026-11-22: leave config-CC untouched for now. Fix when wanted: refresh that copy from `main` and set the three to `false` there.
 - A global config audit on 2026-11-21 spotted the `true`/`false` contradiction but was interrupted; no fix, no ruling.
 - Ultra voice still answers mostly in sentences (headless runs). Not solved.
 - No bullet badge in the status line.
@@ -36,6 +36,7 @@ Newest state first, then history, then backlog.
 - Goal (user): resume bullet work later with nothing missing.
 - PR #1 merged into `main` as `796a039` at the user's request.
 - Transcripts after the last memory note scanned (2026-11-12 to 2026-11-22): no unrecorded code change; missing items were the doubled-hook cause, the stale config-CC copy, the interrupted audit, two unchosen options and one idea. All added above.
+- Rulings: PR #2 merged; doubled plugins and the config-CC copy left as they are (see Open items).
 - Local install `LICENSE` aligned with the repo (it only had an extra leading blank line).
 
 ### 2026-11-22 — Sync to GitHub and review fixes
