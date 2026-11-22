@@ -126,22 +126,36 @@ test('invalid session id does not write outside state dir', () => {
 
 // ---- per-turn behaviour ----
 
-test('reminder on normal turns, full rules on the 8th', () => {
+test('reminder every turn, never the full ruleset', () => {
   resetState();
   prompt('s1', '/bullet ultra');
-  for (let i = 1; i <= 7; i++) {
+  for (let i = 1; i <= 9; i++) {
     const c = prompt('s1', 'turn ' + i);
-    assert.ok(c.length < 300, 'reminder too long: ' + c.length);
-    assert.ok(!c.includes('bullet:surgical-patch'), 'full block too early at ' + i);
+    assert.ok(c.length < 800, 'reminder too long: ' + c.length);
+    assert.ok(!c.includes('BULLET RULESET'), 'full ruleset re-sent at turn ' + i);
+    assert.ok(/Max 5 lines/.test(c), 'reminder lacks the ultra voice line at ' + i);
+    assert.ok(c.includes('Answer only what was asked'), 'reminder lacks the scope rule at ' + i);
   }
-  const c8 = prompt('s1', 'turn 8');
-  assert.ok(c8.includes('bullet:surgical-patch'), '8th turn did not refresh');
 });
 
-test('full block stays under 3500 characters', () => {
+test('every level carries the shared voice, shape, code and routing', () => {
+  for (const level of ['lite', 'full', 'ultra']) {
+    resetState();
+    const c = prompt('s1', '/bullet ' + level);
+    assert.ok(c.includes('BULLET RULESET'), level + ': no ruleset marker');
+    assert.ok(c.includes('Lead with the next action'), level + ': shape missing');
+    assert.ok(c.includes('Kill ceremony'), level + ': voice missing');
+    assert.ok(c.includes('YAGNI'), level + ': code ladder missing');
+    assert.ok(c.includes('bullet:surgical-patch'), level + ': routing missing');
+    assert.ok(c.includes('Voice ' + level + ':'), level + ': own level line missing');
+    assert.ok(/\n### /.test(c), level + ': markdown flattened');
+  }
+});
+
+test('full ruleset stays under 10000 characters', () => {
   resetState();
   const c = prompt('s1', '/bullet full');
-  assert.ok(c.length < 3500, 'full block is ' + c.length + ' chars');
+  assert.ok(c.length < 10000, 'full block is ' + c.length + ' chars');
 });
 
 // ---- subagents ----
@@ -226,7 +240,7 @@ test('bullet-stats counts usage once per message and bullet injections only', ()
     { type: 'assistant', message: { id: 'm1', usage: { input_tokens: 10, cache_creation_input_tokens: 100, cache_read_input_tokens: 1000, output_tokens: 5 } } },
     { type: 'assistant', message: { id: 'm2', usage: { input_tokens: 4, cache_creation_input_tokens: 0, cache_read_input_tokens: 2000, output_tokens: 7 } } },
     { type: 'attachment', attachment: { type: 'hook_success', content: 'BULLET MODE ACTIVE (ultra). Apply bullet ultra rules.' } },
-    { type: 'attachment', attachment: { type: 'hook_success', content: 'BULLET MODE ACTIVE (full). ' + 'x'.repeat(400) } },
+    { type: 'attachment', attachment: { type: 'hook_success', content: 'BULLET MODE ACTIVE (full). BULLET RULESET: ' + 'x'.repeat(400) } },
     { type: 'attachment', attachment: { type: 'hook_additional_context', content: ['BULLET MODE ACTIVE (ultra). Apply bullet ultra rules.'] } },
     { type: 'attachment', attachment: { type: 'hook_success', content: 'CAVEMAN MODE ACTIVE — not ours' } },
   ].map((l) => JSON.stringify(l)).join('\n');

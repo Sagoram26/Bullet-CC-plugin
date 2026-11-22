@@ -8,7 +8,7 @@
 // State (under CLAUDE_CONFIG_DIR or ~/.claude):
 //   .bullet/default.json          { mode }          default level for new sessions
 //   .bullet/session-<id>.json     { mode, turns }   per session; mode "off" allowed
-// Rules are read from ../skills/bullet/SKILL.md (sections Common, Level, Routing).
+// Rules are read from ../skills/bullet/SKILL.md (sections Common, Voice, Shape, Code, Level, Routing).
 // Every path ends with exit 0 and never throws to the host.
 
 const fs = require('fs');
@@ -16,8 +16,6 @@ const path = require('path');
 const os = require('os');
 const { execFileSync } = require('child_process');
 
-// Tunable: full rules are re-sent every N user prompts.
-const REFRESH_EVERY = 8;
 // Tunable: session state files older than this are purged at SessionStart.
 const PURGE_AFTER_DAYS = 30;
 // Tunable: how long to wait for stdin before giving up (Windows stdin can stall, see ponytail #443).
@@ -30,6 +28,9 @@ const CONFIG_DIR = process.env.CLAUDE_CONFIG_DIR || path.join(os.homedir(), '.cl
 const STATE_DIR = path.join(CONFIG_DIR, '.bullet');
 const DEFAULT_PATH = path.join(STATE_DIR, 'default.json');
 const SKILL_PATH = path.join(__dirname, '..', 'skills', 'bullet', 'SKILL.md');
+
+// Marks a full ruleset injection (bullet-stats tells full from reminder by it).
+const FULL_MARKER = 'BULLET RULESET';
 
 const FALLBACK_RULES =
   'Bullet: answer first, fragments, Next: line, fix root cause, delete before add. ' +
@@ -50,29 +51,49 @@ function collapse(text) {
   return text.replace(/\s*\n\s*/g, ' ').replace(/\s{2,}/g, ' ').trim();
 }
 
+// Injected in this order, markdown kept: headings and Bad/Good pairs are what
+// condition the voice. A run-on paragraph (the 0.1.x collapse) had little effect.
+const SECTIONS = ['Common', 'Voice', 'Shape', 'Code', 'Level', 'Routing'];
+
 let cachedRules = null;
+function loadRules() {
+  if (cachedRules) return cachedRules;
+  cachedRules = {};
+  try {
+    const md = fs.readFileSync(SKILL_PATH, 'utf8');
+    for (const s of SECTIONS) if (s !== 'Level') cachedRules[s] = sectionBody(md, s);
+    for (const l of LEVELS) cachedRules[l] = sectionBody(md, 'Level: ' + l);
+  } catch (e) { /* missing skill: use fallback */ }
+  return cachedRules;
+}
+
 function rulesFor(mode) {
-  if (!cachedRules) {
-    cachedRules = {};
-    try {
-      const md = fs.readFileSync(SKILL_PATH, 'utf8');
-      cachedRules.common = sectionBody(md, 'Common');
-      cachedRules.routing = sectionBody(md, 'Routing');
-      for (const l of LEVELS) cachedRules[l] = sectionBody(md, 'Level: ' + l);
-    } catch (e) { /* missing skill: use fallback */ }
+  const r = loadRules();
+  const parts = [];
+  for (const s of SECTIONS) {
+    const heading = s === 'Level' ? 'Level: ' + mode : s;
+    const body = s === 'Level' ? r[mode] : r[s];
+    if (!body) return FALLBACK_RULES;
+    parts.push('## ' + heading + '\n\n' + body);
   }
-  const { common, routing } = cachedRules;
-  const level = cachedRules[mode];
-  if (!common || !level || !routing) return FALLBACK_RULES;
-  return collapse(common) + ' ' + collapse(level) + ' ' + collapse(routing);
+  return parts.join('\n\n');
 }
 
 function fullBlock(mode) {
-  return `BULLET MODE ACTIVE (${mode}). ${rulesFor(mode)}`;
+  return `BULLET MODE ACTIVE (${mode}). ${FULL_MARKER}: the ruleset below applies to every response.\n\n${rulesFor(mode)}`;
 }
 
+// Per-turn directive, sent last so recency works for it (same mechanism as the
+// caveman tracker): the level's voice line plus scope and shape essentials.
+// The full ruleset is sent only at SessionStart (including after compact) and on a level change.
 function reminder(mode) {
-  return `BULLET MODE ACTIVE (${mode}). Apply bullet ${mode} rules.`;
+  const level = loadRules()[mode];
+  const head = level ? collapse(level.split(/\n\s*\n/)[0]) : '';
+  return `BULLET MODE ACTIVE (${mode}). ${head ? head + ' ' : ''}` +
+    'Answer only what was asked: no unrequested background, lists, examples, walkthroughs, or follow-up offers. ' +
+    'First line: the answer or the next action. No preamble, recap, or closer. ' +
+    'Work left: end with `Next:` and one action. ' +
+    'Security, irreversible actions, step order: normal prose. Code, commands, paths, errors stay exact.';
 }
 
 // ---------- state ----------
@@ -202,8 +223,8 @@ function onPrompt(sid, prompt) {
 
   const state = resolveSession(sid);
   if (!state.mode) return;
-  const turns = bumpTurns(sid, state);
-  emit('UserPromptSubmit', turns % REFRESH_EVERY === 0 ? fullBlock(state.mode) : reminder(state.mode));
+  bumpTurns(sid, state);
+  emit('UserPromptSubmit', reminder(state.mode));
 }
 
 // ---------- SessionStart / SubagentStart ----------
