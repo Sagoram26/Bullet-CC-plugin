@@ -7,10 +7,11 @@ Newest state first, then history, then backlog.
 
 - `main` at `37ab3f9` holds v0.1.x (routing, reviewer format, end-of-task dialog, verbatim relay).
 - Branch `dev/sync-2026-11-22` adds the 2026-11-11/12 rework (see CHANGELOG "Rework", "Change", "Ultra"), synced from the local install.
-- Tests: `node hooks/bullet-hook.selftest.js` (19 cases, temp dir, writes nothing under `~/.claude`).
+- Tests: `node hooks/bullet-hook.selftest.js` (20 cases, temp dir, writes nothing under `~/.claude`).
+- Review fixes applied on the branch (2026-11-22, see History). The local install does not have them yet.
 - Local install: `~/.claude/plugins-local/bullet/` (marketplace `bullet`, type `directory`). It is not a git checkout: copy changes into this repo by hand, then push.
 - `caveman`, `i-have-adhd`, `ponytail` must stay `false` in `~/.claude/settings.json`, else hooks double up. Rollback: set them back to `true` and `bullet@bullet` to `false`.
-- Rules live in `skills/bullet/SKILL.md` (`## Common`, `## Voice`, `## Shape`, `## Code`, `## Level:`, `## Routing`). The hook reads them at run time: editing the SKILL is enough.
+- Rules live in `skills/bullet/SKILL.md` (`## Common`, `## Voice`, `## Shape`, `## Code`, `## Level:`, `## Routing`, `## Reminder` for the per-turn directive). The hook reads them at run time: editing the SKILL is enough.
 
 ### Open items
 
@@ -22,6 +23,13 @@ Newest state first, then history, then backlog.
 - Plugin icon pending (PNG to be provided).
 
 ## History
+
+### 2026-11-22 — Sync to GitHub and review fixes
+- Local rework pushed on `dev/sync-2026-11-22` so work can continue from the repo. `main` untouched.
+- Independent `bullet:reviewer` pass on `main..dev`: 5 risks, 2 nits, 1 question, about -30 lines of cuts. User ruling: fix everything.
+- Question ruling: keep a length fallback in stats (unmarked text over 1500 characters counts as full) so pre-marker transcripts stay correct. Why: old full blocks were about 2900+ characters; the new reminder is about 585.
+- Reminder text moved from the hook into `## Reminder` in `SKILL.md`. Fallback block no longer carries the marker. Turn counter removed (nothing read it after the 8-turn refresh went). Closer rule: finished task, AskUserQuestion; open work, `Next:`.
+- Selftest 20/20. Ultra block 9139 characters, reminder 553 to 585.
 
 ### 2026-11-12 — Rework on the caveman / i-have-adhd mechanism
 - Request: "caveman content with the i-have-adhd answer architecture", conditioning on every turn like those two plugins.

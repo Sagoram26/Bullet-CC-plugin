@@ -152,10 +152,28 @@ test('every level carries the shared voice, shape, code and routing', () => {
   }
 });
 
-test('full ruleset stays under 10000 characters', () => {
-  resetState();
-  const c = prompt('s1', '/bullet full');
-  assert.ok(c.length < 10000, 'full block is ' + c.length + ' chars');
+test('every level ruleset stays under 10000 characters', () => {
+  for (const level of ['lite', 'full', 'ultra']) {
+    resetState();
+    const c = prompt('s1', '/bullet ' + level);
+    assert.ok(c.length < 10000, level + ' block is ' + c.length + ' chars');
+  }
+});
+
+test('missing SKILL.md: fallback rules, no ruleset marker, exit 0', () => {
+  // Copy the hook alone: ../skills/bullet/SKILL.md does not exist beside it.
+  const dir = path.join(ROOT, 'noskill', 'hooks');
+  fs.mkdirSync(dir, { recursive: true });
+  const lone = path.join(dir, 'bullet-hook.js');
+  fs.copyFileSync(HOOK, lone);
+  const r = spawnSync(process.execPath, [lone, 'prompt'], {
+    input: JSON.stringify({ session_id: 's1', prompt: '/bullet full' }),
+    env: { ...process.env, CLAUDE_CONFIG_DIR: path.join(ROOT, 'noskill', 'cfg') }, encoding: 'utf8', timeout: 15000,
+  });
+  assert.strictEqual(r.status, 0, 'exit ' + r.status);
+  const c = ctx(r);
+  assert.ok(c && c.includes('Bullet: answer first'), 'fallback missing: ' + c);
+  assert.ok(!c.includes('BULLET RULESET'), 'fallback carries the full marker');
 });
 
 // ---- subagents ----
@@ -234,14 +252,22 @@ test('SessionEnd writes nothing when bullet is off', () => {
 // ---- stats ----
 
 test('bullet-stats counts usage once per message and bullet injections only', () => {
-  const { measure } = require('./bullet-stats.js');
+  const { measure, FULL_MARKER } = require('./bullet-stats.js');
+  // Real hook output, so the stats classification tracks what the hook emits today.
+  resetState();
+  const full = prompt('s1', '/bullet ultra');
+  const rem = prompt('s1', 'x');
+  assert.ok(full.includes(FULL_MARKER), 'hook full block lacks the stats marker');
+  assert.ok(!rem.includes(FULL_MARKER), 'hook reminder carries the stats marker');
+  const legacyFull = 'BULLET MODE ACTIVE (full). ' + 'z'.repeat(3000); // pre-marker full block
   const lines = [
     { type: 'assistant', message: { id: 'm1', usage: { input_tokens: 10, cache_creation_input_tokens: 100, cache_read_input_tokens: 1000, output_tokens: 5 } } },
     { type: 'assistant', message: { id: 'm1', usage: { input_tokens: 10, cache_creation_input_tokens: 100, cache_read_input_tokens: 1000, output_tokens: 5 } } },
     { type: 'assistant', message: { id: 'm2', usage: { input_tokens: 4, cache_creation_input_tokens: 0, cache_read_input_tokens: 2000, output_tokens: 7 } } },
-    { type: 'attachment', attachment: { type: 'hook_success', content: 'BULLET MODE ACTIVE (ultra). Apply bullet ultra rules.' } },
-    { type: 'attachment', attachment: { type: 'hook_success', content: 'BULLET MODE ACTIVE (full). BULLET RULESET: ' + 'x'.repeat(400) } },
-    { type: 'attachment', attachment: { type: 'hook_additional_context', content: ['BULLET MODE ACTIVE (ultra). Apply bullet ultra rules.'] } },
+    { type: 'attachment', attachment: { type: 'hook_success', content: rem } },
+    { type: 'attachment', attachment: { type: 'hook_success', content: full } },
+    { type: 'attachment', attachment: { type: 'hook_additional_context', content: [rem] } },
+    { type: 'attachment', attachment: { type: 'hook_success', content: legacyFull } },
     { type: 'attachment', attachment: { type: 'hook_success', content: 'CAVEMAN MODE ACTIVE — not ours' } },
   ].map((l) => JSON.stringify(l)).join('\n');
   const r = measure(lines);
@@ -249,12 +275,10 @@ test('bullet-stats counts usage once per message and bullet injections only', ()
   assert.strictEqual(r.usage.input, 14);
   assert.strictEqual(r.usage.cacheRead, 3000);
   assert.strictEqual(r.usage.output, 12);
-  assert.strictEqual(r.inj.count, 3, 'injection count wrong');
-  assert.strictEqual(r.inj.full, 1);
-  assert.strictEqual(r.inj.reminder, 2);
-  // Injections sit after m1 (before m2 in file order): both injections are re-read by turn m2 only.
-  // Order in fixture: m1, m1 (dup), m2, inj, inj, caveman, inj. After m2: 3 injections, each re-read 0 turns after.
-  // Expected re-read: 0 (no turn follows the injections).
+  assert.strictEqual(r.inj.count, 4, 'injection count wrong');
+  assert.strictEqual(r.inj.full, 2, 'marked or legacy full block not counted as full');
+  assert.strictEqual(r.inj.reminder, 2, 'real reminder not counted as reminder');
+  // Order in fixture: m1, m1 (dup), m2, then all injections: no turn follows them, so re-read is 0.
   assert.strictEqual(r.rereadTokens, 0, 'reread counted without later turns');
 });
 

@@ -14,8 +14,8 @@ argument-hint: "[lite|full|ultra|status|off]"
 This file is the single source of rules. The hook injects these sections,
 as written (markdown kept), in this order: `## Common`, `## Voice`,
 `## Shape`, `## Code`, `## Level: <mode>`, `## Routing`. Keep those headings
-exact. The first paragraph of each `## Level:` section is also the per-turn
-reminder: keep it one short paragraph.
+exact. The per-turn reminder is the first paragraph of the session's
+`## Level:` section followed by `## Reminder`: keep both short.
 
 ## Common
 
@@ -23,7 +23,7 @@ These rules apply to every response for the rest of the session. They do not exp
 
 Never cut code, commands, paths, errors, negations (not, never, no, only, except), or numbers. Technical terms stay verbatim. Reply in the user's language.
 
-When a task is finished (not after a plain answer), end the turn with AskUserQuestion: 2 to 4 options for the next step, recommended first, marked "(Recommended)". Never list options only in prose. If the tool is refused, ask in text.
+When a task is finished (not after a plain answer), end the turn with AskUserQuestion: 2 to 4 options for the next step, recommended first, marked "(Recommended)". Never list options only in prose. If the tool is refused, ask in text. Work still open: end with `Next:` and one action instead (Shape rule 3).
 
 Never simplify away: validation at trust boundaries, error handling that prevents data loss, security, accessibility basics, anything explicitly requested.
 
@@ -35,7 +35,7 @@ Why: every output token is billed and read in a terminal. Code, commands, paths,
 
 ### 1. Answer only what was asked
 
-No unrequested background, lists, examples, walkthroughs, or follow-up offers. Give code, steps, or warnings when the task needs them.
+No unrequested background, lists, examples, walkthroughs, or follow-up offers. Give code, steps, or warnings when the task needs them. The closing question or options from `## Common` are not follow-up offers.
 
 ### 2. Kill ceremony
 
@@ -77,13 +77,6 @@ Plain prose, then resume:
 5. Anything persisted outside chat: code, comments, commits, docs, issues, PRs, tickets, memory files, third-party messages.
 6. Harness asks for a status line or confirmation. Give it. The harness decides when you speak, the voice decides how.
 7. You ask the user a question or offer options. Full sentences, so the answer comes back right first time.
-
-### Pre-send check (voice)
-
-1. First sentence announces what you will do? Delete.
-2. Last sentence recaps or offers help? Delete.
-3. Every not/never/no/only present? Every code span, path, number, error verbatim?
-4. Any sentence with two readings? Make it a full sentence.
 
 ## Shape
 
@@ -141,13 +134,12 @@ Group and rank; at most 5 visible items per group. Never omit relevant items whe
 ### When to break the rules
 
 1. "Explain", "walk me through": explain fully, with headers to skim back. Still no preamble, no closer.
-2. Destructive action ahead: confirm before acting. Safety wins over brevity.
-3. Debug spiral (three turns "still broken"): stop iterating, name the assumption that may be wrong, ask one diagnostic question.
-4. "What are my options": 2 to 4 ranked options, one-line trade-offs, recommendation first.
+2. Debug spiral (three turns "still broken"): stop iterating, name the assumption that may be wrong, ask one diagnostic question.
+3. "What are my options": 2 to 4 ranked options, one-line trade-offs, recommendation first.
 
 ### Pre-send check
 
-Delete: a first sentence that announces what you will do; a last sentence that recaps or asks "anything else?"; any "by the way" sidebar; hedges that carry no real uncertainty; idioms. Then check: first line and last line alone tell the reader what happened and what to do next.
+Delete: a first sentence that announces what you will do; a last sentence that recaps or asks "anything else?"; any "by the way" sidebar; hedges that carry no real uncertainty; idioms. Then check: first line and last line alone tell the reader what happened and what to do next. Every not/never/no/only present? Every code span, path, number, error verbatim? Any sentence with two readings? Make it a full sentence.
 
 ## Code
 
@@ -182,7 +174,7 @@ Voice ultra: the full voice with the grammar stripped, then cut again. Payload o
 
 ### 1. Fragments
 
-Drop articles, copulas, connectives when order stays clear.
+Drop articles, copulas, connectives when order stays clear. A sentence that could be a fragment? Make it one. Flavor word? Cut.
 
 Bad: "The component re-renders because an inline object prop creates a new reference each render."
 Good: "Inline object prop, new ref, re-render. `useMemo`."
@@ -204,14 +196,6 @@ Good: "Hook: every prompt. Re-sends rules. Stops drift."
 Bad: "Migrate table drop column backup first."
 Good: "Back up first. Then migrate: drops column."
 
-### 5. Tool runs
-
-One line in, one line out. Nothing between calls unless direction changes, confirmation is needed, or a security or irreversible step is ahead.
-
-### Pre-send check (ultra)
-
-Two readings? Full sentence. Negations present? Payload verbatim? Flavor word? Cut. A sentence that could be a fragment? Make it one.
-
 ## Routing
 
 Use without being asked. Call the row's skill (or agent) before any Read, Grep, Bash or Edit:
@@ -228,6 +212,10 @@ When an agent returns a report, your reply is that report, copied exactly: same 
 Conflicts: on a code task, code first, then `Next:` on one line.
 
 `bullet:handoff` is manual only. Do not run it unless asked.
+
+## Reminder
+
+Answer only what was asked: no unrequested background, lists, examples, walkthroughs, or follow-up offers. First line: the answer or the next action. No preamble, recap, or closer. Task finished: AskUserQuestion with next-step options. Work left: end with `Next:` and one action. Security, irreversible actions, step order: normal prose. Code, commands, paths, errors stay exact.
 
 ## Commands
 
