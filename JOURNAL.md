@@ -8,7 +8,7 @@ Newest state first, then history, then backlog.
 - `main` at `37ab3f9` holds v0.1.x (routing, reviewer format, end-of-task dialog, verbatim relay).
 - Branch `dev/sync-2026-11-22` adds the 2026-11-11/12 rework (see CHANGELOG "Rework", "Change", "Ultra"), synced from the local install.
 - Tests: `node hooks/bullet-hook.selftest.js` (20 cases, temp dir, writes nothing under `~/.claude`).
-- Review fixes applied on the branch (2026-11-22, see History). The local install does not have them yet.
+- Review fixes applied on the branch and copied to the local install (2026-11-22, see History).
 - Local install: `~/.claude/plugins-local/bullet/` (marketplace `bullet`, type `directory`). It is not a git checkout: copy changes into this repo by hand, then push.
 - `caveman`, `i-have-adhd`, `ponytail` must stay `false` in `~/.claude/settings.json`, else hooks double up. Rollback: set them back to `true` and `bullet@bullet` to `false`.
 - Rules live in `skills/bullet/SKILL.md` (`## Common`, `## Voice`, `## Shape`, `## Code`, `## Level:`, `## Routing`, `## Reminder` for the per-turn directive). The hook reads them at run time: editing the SKILL is enough.
