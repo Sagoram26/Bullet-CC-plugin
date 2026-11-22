@@ -3,19 +3,27 @@
 Source of truth for development decisions. One dated entry per step or ruling, with its reason.
 Newest state first, then history, then backlog.
 
+## Resume here
+
+1. Read this file to the end of "Open items".
+2. Clone: `git clone https://github.com/Sagoram26/Bullet-CC-plugin`, then set `user.name Sagoram26` and the noreply email in the clone (never the real name).
+3. Install for dev: in `~/.claude/settings.json`, add marketplace `bullet` with source `directory` pointing at the plugin folder, and set `bullet@bullet: true`. Keep `caveman`, `ponytail`, `i-have-adhd` at `false`.
+4. Check: `node hooks/bullet-hook.selftest.js` must print `20 passed, 0 failed`.
+5. Behaviour checks: headless runs with `claude -p` in fresh sessions (1 run per case, as in History). `AskUserQuestion` is not available headless: test it interactively.
+
 ## Current state (2026-11-22)
 
-- `main` at `37ab3f9` holds v0.1.x (routing, reviewer format, end-of-task dialog, verbatim relay).
-- Branch `dev/sync-2026-11-22` adds the 2026-11-11/12 rework (see CHANGELOG "Rework", "Change", "Ultra"), synced from the local install.
+- `main` at `796a039` (PR #1 merged): v0.1.x plus the 2026-11-11/12 rework plus the review fixes. Branch `dev/sync-2026-11-22` (at `44f0fde`) is kept but fully merged.
 - Tests: `node hooks/bullet-hook.selftest.js` (20 cases, temp dir, writes nothing under `~/.claude`).
-- Review fixes applied on the branch and copied to the local install (2026-11-22, see History).
-- Local install: `~/.claude/plugins-local/bullet/` (marketplace `bullet`, type `directory`). It is not a git checkout: copy changes into this repo by hand, then push.
+- Local install: `~/.claude/plugins-local/bullet/` (marketplace `bullet`, type `directory`). It is not a git checkout: copy changes into this repo by hand, then push. On 2026-11-22 it matched `main` exactly (`JOURNAL.md` apart).
 - `caveman`, `i-have-adhd`, `ponytail` must stay `false` in `~/.claude/settings.json`, else hooks double up. Rollback: set them back to `true` and `bullet@bullet` to `false`.
 - Rules live in `skills/bullet/SKILL.md` (`## Common`, `## Voice`, `## Shape`, `## Code`, `## Level:`, `## Routing`, `## Reminder` for the per-turn directive). The hook reads them at run time: editing the SKILL is enough.
 
 ### Open items
 
-- 2026-11-22: caveman and ponytail hooks were seen injecting in a session alongside bullet. Check `~/.claude/settings.json` on that machine.
+- Doubled hooks, confirmed 2026-11-22: `caveman`, `ponytail`, `i-have-adhd` are `true` again in `~/.claude/settings.json` next to `bullet`; sessions and subagents get all three injections. `settings.json.bak` (2026-11-15) still has them `false`. Likely cause: the `/plugin` menu and `/reload-plugins` on 2026-11-16 (first caveman and ponytail injection 2026-11-16 09:46 UTC). Inference, no stated reason. Fix: set the three back to `false`. Awaiting user decision.
+- Stale copy in the separate config backup repo: `~/config-CC/claude/plugins-local/bullet/` (branch `pc-bureau`, `bd12a58`) holds the pre-review-fix version, and its `claude/settings.json` has all four plugins `true`. Restoring on another PC reproduces both problems. Refresh that copy from `main` and set the three to `false` there.
+- A global config audit on 2026-11-21 spotted the `true`/`false` contradiction but was interrupted; no fix, no ruling.
 - Ultra voice still answers mostly in sentences (headless runs). Not solved.
 - No bullet badge in the status line.
 - `/bullet off` clears the global default: a later `/bullet` gives `full`, not the last level (validated choice, revisit if annoying).
@@ -23,6 +31,12 @@ Newest state first, then history, then backlog.
 - Plugin icon pending (PNG to be provided).
 
 ## History
+
+### 2026-11-22 — Resume audit
+- Goal (user): resume bullet work later with nothing missing.
+- PR #1 merged into `main` as `796a039` at the user's request.
+- Transcripts after the last memory note scanned (2026-11-12 to 2026-11-22): no unrecorded code change; missing items were the doubled-hook cause, the stale config-CC copy, the interrupted audit, two unchosen options and one idea. All added above.
+- Local install `LICENSE` aligned with the repo (it only had an extra leading blank line).
 
 ### 2026-11-22 — Sync to GitHub and review fixes
 - Local rework pushed on `dev/sync-2026-11-22` so work can continue from the repo. `main` untouched.
@@ -38,6 +52,7 @@ Newest state first, then history, then backlog.
 - Full ruleset injected as raw markdown at SessionStart (incl. after compact) and on level change only. The 8-turn refresh is removed (reverses the 2026-11-10 ruling: copying the two plugins' mechanism wins). Per-turn reminder about 530 characters.
 - Ultra carries the ultracave rules. Ultra block 9464 characters (test limit 10000).
 - Headless: "explain" 26 lines with headers; other answers 5, 9, 6 lines.
+- Options offered and not chosen (keep as alternatives): one complete ruleset file per level, as caveman does; test live before porting ultracave.
 - Finding: caveman is on by default and injects a full SKILL per level; i-have-adhd only injects when `~/.claude/.i-have-adhd-always` exists, else via `/i-have-adhd`.
 
 ### 2026-11-11 — "Ultra stays verbose"
@@ -59,6 +74,7 @@ Newest state first, then history, then backlog.
 - CI badge in README.
 - Install test from GitHub in a clean profile: `/plugin marketplace add Sagoram26/Bullet-CC-plugin`.
 - Real A/B cost measurement (bullet on/off, same tasks).
+- Idea, not measured (2026-11-12): `/i-have-adhd` delivers its full SKILL (about 7.3k) as command output inside the conversation. That position may weigh more than hook `additionalContext`. Worth an A/B on the ultra voice problem.
 
 ### V2 (design only, paused 2026-11-10, no spec, no code)
 - Add criterion: a workflow exists only if it adds a guarantee or format Claude Code lacks by default.
